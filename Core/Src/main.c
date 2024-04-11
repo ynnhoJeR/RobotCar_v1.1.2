@@ -84,8 +84,8 @@ static void MX_TIM4_Init(void);
 /* USER CODE BEGIN PFP */
 
 static void TOGGLE_PIN(GPIO_TypeDef* GPIOx, uint16_t GPIO_Pin);
-static void SET_PWM_MOTOR(uint8_t value);
-static void SET_PWM_LENKUNG(uint8_t value);
+// static void SET_PWM_MOTOR(uint8_t value);
+// static void SET_PWM_LENKUNG(uint8_t value);
 static void ENCODE_SIGN(uint8_t value);
 static void START_PARKING(void);
 static void CHECK_STATE(void);
@@ -143,6 +143,7 @@ int main(void)
 
   TOF_INIT();
   SET_OFFSET();
+
   /* USER CODE BEGIN 2 */
 
   //UART
@@ -170,7 +171,8 @@ int main(void)
 //  HAL_TIM_Encoder_Start(&htim1,TIM_CHANNEL_1);
 
   //Hier wird das Neutralsignal für den Fahrtregler ausgegeben.
-  SET_PWM_MOTOR(75); 	// Set zero position of motor driver (TIM3 PWM Motor)
+//  SET_PWM_MOTOR(75); 	// Set zero position of motor driver (TIM3 PWM Motor)
+  htim3.Instance->CCR1 = 75;
   HAL_Delay(2000);		// Wait for motor driver to get zero position
 
   //Callback at USER CODE 4
@@ -188,8 +190,10 @@ int main(void)
 	  switch (state) {
 
 		case STOP:
-			SET_PWM_LENKUNG(75); //Set Duty Cycle of TIM2 PWM Lenkung
-			SET_PWM_MOTOR(75); //Set Duty Cycle of TIM3 PWM Motor
+//			SET_PWM_LENKUNG(83); //Set Duty Cycle of TIM2 PWM Lenkung
+			htim2.Instance->CCR2 = 83;
+//			SET_PWM_MOTOR(75); //Set Duty Cycle of TIM3 PWM Motor
+			htim3.Instance->CCR1 = 75;
 			HAL_Delay(1000);
 
 			CHECK_STATE();	//Checkt den aktuellen Fahrmodus (durch blauen Knopf änderbar) | einmal drücken DRIVE, kurz gedrückt halten PARK
@@ -207,10 +211,13 @@ int main(void)
 					if(rx_buff[9]==88){TOGGLE_PIN(GPIOA,GPIO_PIN_5);}
 
 				//WICHTIG! im Fehlerfall via Debugger die Positionen der übertagenen UART Werte prüfen im rx_buff!
-					SET_PWM_LENKUNG(rx_buff[3]); //Set Duty Cycle of TIM2 PWM Lenkung
-					SET_PWM_MOTOR(rx_buff[4]); //Set Duty Cycle of TIM3 PWM Motor
+//					SET_PWM_LENKUNG(rx_buff[3]); //Set Duty Cycle of TIM2 PWM Lenkung
+					htim2.Instance->CCR2 = rx_buff[3];
+//					SET_PWM_MOTOR(rx_buff[4]); //Set Duty Cycle of TIM3 PWM Motor
+					htim3.Instance->CCR1 = rx_buff[4];
 
 					//TODO: Hier Funktion ergänzen die nach Schilderkennung in den passenden Modus wechselt
+
 					int8_t STOP_CAR = 0x01;
 
 					STOP_CAR = CHECK_BUTTON();
@@ -220,6 +227,7 @@ int main(void)
 						state = STOP;
 						HAL_Delay(1500);
 					}
+
 					//ENCODE_SIGN(rx_buff[????]);
 
 				 }
@@ -270,22 +278,24 @@ static void TOGGLE_PIN(GPIO_TypeDef* GPIOx, uint16_t GPIO_Pin)
  * Steuerung des Motors, value:
  * 75...100 Entspricht 0 bis 100% Geschwindigkeit
  * PWM wird erzeugt mit TIM3
- */
+ *
 static void SET_PWM_MOTOR(uint8_t value)
 {
 
 	htim3.Instance->CCR1 = value;
 }
+**/
 
 /**
  * Steuerung Lenkung: value:
- *  rechts max = 50, links max = 100
+ *  rechts max = 45, null = 83, links max = 105
  *  PWM wird erzeugt mit TIM2
- */
+ *
 static void SET_PWM_LENKUNG(uint8_t value)
 {
-	htim2.Instance->CCR1 = value;
+	htim2.Instance->CCR2 = value;
 }
+**/
 
 /**
  * Auswerten welches Schild erkannt wurde und entsprechend den Modus ändern
@@ -307,12 +317,12 @@ static void ENCODE_SIGN(uint8_t value)
 }
 
 /**
- * Funktion die auto losfahren/parken lässt: Reaktion auf Button Betätigung
+ * Funktion die Auto losfahren/parken lässt: Reaktion auf Button Betätigung
  * Blaue Taste einmal drücken = DRIVE, Taste kurz gedrückt halten = PARK
  * LD2 leuchtet solange in STOP-MODE
  *
- * DRIVE-MODE: schneller blinken der LED
- * PARK-MODE: langsames blinken der LED
+ * DRIVE-MODE: Bei Start schnelleres blinken der LED
+ * PARK-MODE: Bei Start langsameres blinken der LED
 */
 static void CHECK_STATE(void)
 {
@@ -383,20 +393,20 @@ static void START_SIGNAL(uint16_t MODE)
 	}
 }
 /**
- * Einparkalgorythmus V1.0.0
+ * Einparkalgorythmus V1.1.2
  *
- * distance_TOF[1] = CENTER_LEFT, distance_TOF[2] = FRONT_LEFT, distance_TOF[3] = FRONT_RIGHT, distance_TOF[4] = BACK_LEFT, distance_TOF[5] = BACK_RIGHT, distance_TOF[6] = CENTER_RIGHT
+ * distance_TOF[1] = CENTER_LEFT, distance_TOF[2] = FRONT_LEFT, distance_TOF[3] = FRONTSIDE_CENTER, distance_TOF[4] = BACK_LEFT, distance_TOF[5] = BACKSIDE_CENTER, distance_TOF[6] = BACKSIDE_LEFT
  * distance_US[0] = FRONT_CENTER_US, distance_US[1] = BACK_CENTER_US
+ *
+ * htim3 = Motot, htim2 = Lenkung
  */
 static void START_PARKING(void)
 {
-	int TICK_S, TICK_E;
-	int FAHRZEIT;
-	int PARKLUECKE_BREITE;
-	int GW_PARKLÜCKE = 200U, GW_BACK =  130U, GW_PARALLEL = 80U, GW_KORREKTUR = 80U;	//GW = Grenzwert
-	const float VELO = 0.139f;	// Geschwindigkeit [mm/ms] = 0,5 km/h = PWM(80)???
+	int RESET_LENKUNG = 83U;	//Nullstellung
+	int RESET_MOTOR = 75U;		//Nullstellung
+	int GW_PARKLÜCKE = 220U, GW_BACK = 400U, GW_PARALLEL = 250U, GW_KORREKTUR = 300U;	//GW = Grenzwert
 
-	SET_PWM_MOTOR(85);
+	htim3.Instance->CCR1 = 83;
 
 	while(1)
 	{
@@ -405,57 +415,46 @@ static void START_PARKING(void)
 		{
 			GET_TOF_DATA();
 		}
-		while(distance_TOF[2] < GW_PARKLÜCKE);	// TOF FRONT_LEFT
-
-		TICK_S = SysTickGetTickcount();
-		printf("\n");
-		printf("-> Beginn der Parkluecke <-\n");
-
-		//Langsamer fahren,  Encoder für Auswertung
-		SET_PWM_MOTOR(80);
+		while(distance_TOF[2] < GW_PARKLÜCKE || distance_TOF[2] == 0U);	// TOF FRONT_LEFT
 
 	//Fahren bis Lücke Zuende ist
 		do
 		{
 			GET_TOF_DATA();
 		}
-		while(distance_TOF[2] > GW_PARKLÜCKE);	//TOF FRONT_LEFT
+		while(distance_TOF[2] > GW_PARKLÜCKE|| distance_TOF[2] == 0U);	//TOF FRONT_LEFT
 
-		printf("\n");
-		printf("-> Ende der Parkluecke <-\n");
-
-		TICK_E = SysTickGetTickcount();
-		FAHRZEIT = (TICK_E - TICK_S);
-		printf("Fahrtzeit bis Parklueckenende: %d ms\n", FAHRZEIT);
-
-		PARKLUECKE_BREITE = VELO * FAHRZEIT;		//Berechnung der Parklückenbreite
-		printf("Breite der Parkluecke: %d mm\n", PARKLUECKE_BREITE);
-
+	//Fahren bis Auto in Position
 		do
 		{
 			GET_TOF_DATA();
 		}
-		while(distance_TOF[1] > GW_PARKLÜCKE);	//TOF CENTER_LEFT
+		while(distance_TOF[1] > GW_PARKLÜCKE || distance_TOF[1] == 0U);	//TOF CENTER_LEFT
 
-		SET_PWM_MOTOR(75);	// Stehen bleiben
-		printf("\nAuto in Position fuer Parkvorgang!\n");
+		htim3.Instance->CCR1 = RESET_MOTOR;
 
 		//Rückwärts und voll links einlenken
-		SET_PWM_LENKUNG(100);
+		htim2.Instance->CCR2 = 105;
 		HAL_Delay(1000);
-		SET_PWM_MOTOR(70);		//Rückwärts??
+		htim3.Instance->CCR1 = 67;
+		HAL_Delay(1000);
+		htim3.Instance->CCR1 = RESET_MOTOR;
+		HAL_Delay(1000);
+		htim3.Instance->CCR1 = 70;
 
-		//Rückwärts bis BACK_CENTER_US Mindestabstand erkannt
+		//Rückwärts bis BACK_CENTER_US Mindestabstand erkannt, dann voll rechts einschlagen
 		do
 		{
-			GET_US_DATA();
+			GET_TOF_DATA();
 		}
-		while(distance_US[1] > GW_BACK);	//US_BACK
+		while(distance_TOF[6] > GW_BACK || distance_TOF[6] == 0U);	//TOF BACKSIDE_LEFT
 
-		SET_PWM_MOTOR(75);		//stehen bleiben
-		SET_PWM_LENKUNG(50);	//Lenkung voll rechts einschalgen
+		htim3.Instance->CCR1 = RESET_MOTOR;
+		htim2.Instance->CCR2 = RESET_LENKUNG;
 		HAL_Delay(1000);
-		SET_PWM_MOTOR(70);		//Rückwärts??
+		htim2.Instance->CCR2 = 45;
+		HAL_Delay(1000);
+		htim3.Instance->CCR1 = 70;
 
 			//Rückwärts bis Auto wieder paralell ist
 			while(1)
@@ -464,24 +463,23 @@ static void START_PARKING(void)
 
 				if (distance_TOF[2] < GW_PARALLEL && distance_TOF[4] < GW_PARALLEL)	//TOF FRONT_LEFT | TOF BACK_LEFT
 				{
-					SET_PWM_MOTOR(75);
-					SET_PWM_LENKUNG(75);
+					htim3.Instance->CCR1 = RESET_MOTOR;
+					htim2.Instance->CCR2 = RESET_LENKUNG;
 					HAL_Delay(1000);
-					printf("\nAuto steht paralell in der Parkluecke!\n");
 					break;
 				}
 			}
 
-		SET_PWM_MOTOR(80);
+		htim3.Instance->CCR1 = 82;
 
 		//Geradeaus bis Auto korrekt steht
 		do
 		{
-			GET_US_DATA();
+			GET_TOF_DATA();
 		}
-		while(distance_US[0] > GW_KORREKTUR);	//US_FRONT
+		while(distance_TOF[3] > GW_KORREKTUR|| distance_TOF[3] == 0U);	//TOF FRONTSIDE_CENTER
 
-		SET_PWM_MOTOR(75);
+		htim3.Instance->CCR1 = RESET_MOTOR;
 		state = STOP;
 		break;
 
