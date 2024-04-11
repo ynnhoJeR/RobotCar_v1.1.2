@@ -241,9 +241,6 @@ int main(void)
 			break;
 	}
 
-	  //Empfangen UARt1 jetson
-
-
   }
   /* USER CODE END 3 */
 }
