@@ -39,10 +39,10 @@ static const char *TofDevStr[] =
 {
   [1] 	= 	"CENTER_LEFT",
   [2] 	= 	"FRONT_LEFT",
-  [3] 	= 	"FRONT_RIGHT",
+  [3] 	= 	"FRONTSIDE_CENTER",
   [4] 	= 	"BACK_LEFT",
-  [5] 	= 	"BACK_RIGHT",
-  [6] 	= 	"CENTER_RIGHT"
+  [5] 	= 	"BACKSIDE_CENTER",
+  [6] 	= 	"BACKSIDE_LEFT"
 
 };
 
@@ -59,6 +59,8 @@ void usDelay(uint32_t uSec);
 
 /**
  * Auswertung der TOF-Sensoren
+ *
+ * Funktion evtl. umbauen, dass immer noch benötigter Sensor abgefragt wird
  */
 static void GET_TOF_DATA(void)
 {
@@ -166,22 +168,22 @@ static void SET_TOF_PIN(uint8_t device)
 {
 	switch (device)
 	{
-		case 0:
+		case 0:	//CENTER_LEFT		(PC04)
 			GPIOC->BSRR = (uint32_t)GPIO_PIN_4;
 			break;
-		case 1:
+		case 1:	//FRONT_LEFT		(PC05)
 			GPIOC->BSRR = (uint32_t)GPIO_PIN_5;
 			break;
-		case 2:
+		case 2:	//FRONTSIDE_CENTER	(PC06)
 			GPIOC->BSRR = (uint32_t)GPIO_PIN_6;
 			break;
-		case 3:
+		case 3:	//BACK_LEFT			(PC07)
 			GPIOC->BSRR = (uint32_t)GPIO_PIN_7;
 			break;
-		case 4:
+		case 4:	//BACKSIDE_CENTER 	(PC08)
 			GPIOC->BSRR = (uint32_t)GPIO_PIN_8;
 			break;
-		case 5:
+		case 5:	//BACKSIDE_LEFT 	(PC09)
 			GPIOC->BSRR = (uint32_t)GPIO_PIN_9;
 			break;
 
@@ -238,6 +240,9 @@ static void SET_OFFSET(void)
 				break;
 			case 6:	//CENTER_RIGHT	(PC09)
 				offsetvalue = -15;
+				break;
+
+			default:
 				break;
 		}
 
