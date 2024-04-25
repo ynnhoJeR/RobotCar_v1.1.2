@@ -389,13 +389,17 @@ static void START_SIGNAL(uint16_t MODE)
 
 	}
 }
+
 /**
  * Einparkalgorythmus V1.1.2
  *
  * distance_TOF[1] = CENTER_LEFT, distance_TOF[2] = FRONT_LEFT, distance_TOF[3] = FRONTSIDE_CENTER, distance_TOF[4] = BACK_LEFT, distance_TOF[5] = BACKSIDE_CENTER, distance_TOF[6] = BACKSIDE_LEFT
  * distance_US[0] = FRONT_CENTER_US, distance_US[1] = BACK_CENTER_US
  *
- * htim3 = Motot, htim2 = Lenkung
+ * htim3 = MOTOR, htim2 = LENKUNG
+ *
+ * MOTOR: Rückwärts 50....75....100 Vorwärts
+ * LENKUNG: Rechts 45....83....105 Links
  */
 static void START_PARKING(void)
 {
@@ -430,7 +434,7 @@ static void START_PARKING(void)
 
 		htim3.Instance->CCR1 = RESET_MOTOR;
 
-		//Rückwärts und voll links einlenken
+	//Rückwärts und voll links einlenken
 		htim2.Instance->CCR2 = 105;
 		HAL_Delay(1000);
 		htim3.Instance->CCR1 = 67;
@@ -439,7 +443,7 @@ static void START_PARKING(void)
 		HAL_Delay(1000);
 		htim3.Instance->CCR1 = 70;
 
-		//Rückwärts bis BACK_CENTER_US Mindestabstand erkannt, dann voll rechts einschlagen
+	//Rückwärts bis BACK_CENTER_US Mindestabstand erkannt, dann voll rechts einschlagen
 		do
 		{
 			GET_TOF_DATA();
@@ -453,7 +457,7 @@ static void START_PARKING(void)
 		HAL_Delay(1000);
 		htim3.Instance->CCR1 = 70;
 
-			//Rückwärts bis Auto wieder paralell ist
+		//Rückwärts bis Auto wieder paralell ist
 			while(1)
 			{
 				GET_TOF_DATA();
@@ -469,7 +473,7 @@ static void START_PARKING(void)
 
 		htim3.Instance->CCR1 = 82;
 
-		//Geradeaus bis Auto korrekt steht
+	//Geradeaus bis Auto korrekt steht
 		do
 		{
 			GET_TOF_DATA();
