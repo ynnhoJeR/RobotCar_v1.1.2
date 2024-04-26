@@ -393,7 +393,7 @@ static void START_SIGNAL(uint16_t MODE)
 /**
  * Einparkalgorythmus V1.1.2
  *
- * distance_TOF[1] = CENTER_LEFT, distance_TOF[2] = FRONT_LEFT, distance_TOF[3] = FRONTSIDE_CENTER, distance_TOF[4] = BACK_LEFT, distance_TOF[5] = BACKSIDE_CENTER, distance_TOF[6] = BACKSIDE_LEFT
+ * distance_TOF[1] = CENTER_LEFT, distance_TOF[2] = FRONTSIDE_LEFT, distance_TOF[3] = FRONTSIDE_CENTER, distance_TOF[4] = FRONTSIDE_RIGHT, distance_TOF[5] = BACKSIDE_CENTER, distance_TOF[6] = BACKSIDE_LEFT
  * distance_US[0] = FRONT_CENTER_US, distance_US[1] = BACK_CENTER_US
  *
  * htim3 = MOTOR, htim2 = LENKUNG
@@ -405,7 +405,7 @@ static void START_PARKING(void)
 {
 	int RESET_LENKUNG = 83U;	//Nullstellung
 	int RESET_MOTOR = 75U;		//Nullstellung
-	int GW_PARKLÜCKE = 220U, GW_BACK = 400U, GW_PARALLEL = 250U, GW_KORREKTUR = 300U;	//GW = Grenzwert
+	int GW_PARKLÜCKE = 220U, GW_BACK = 375U, GW_PARALLEL_FRONT = 200U, GW_PARALLEL_CENTER = 250U, GW_KORREKTUR = 300U;	//GW = Grenzwert
 
 	htim3.Instance->CCR1 = 83;
 
@@ -416,14 +416,14 @@ static void START_PARKING(void)
 		{
 			GET_TOF_DATA();
 		}
-		while(distance_TOF[2] < GW_PARKLÜCKE || distance_TOF[2] == 0U);	// TOF FRONT_LEFT
+		while(distance_TOF[2] < GW_PARKLÜCKE || distance_TOF[2] == 0U);	// TOF FRONTSIDE_LEFT
 
 	//Fahren bis Lücke Zuende ist
 		do
 		{
 			GET_TOF_DATA();
 		}
-		while(distance_TOF[2] > GW_PARKLÜCKE|| distance_TOF[2] == 0U);	//TOF FRONT_LEFT
+		while(distance_TOF[2] > GW_PARKLÜCKE|| distance_TOF[2] == 0U);	//TOF FRONTSIDE_LEFT
 
 	//Fahren bis Auto in Position
 		do
@@ -462,7 +462,7 @@ static void START_PARKING(void)
 			{
 				GET_TOF_DATA();
 
-				if (distance_TOF[2] < GW_PARALLEL && distance_TOF[4] < GW_PARALLEL)	//TOF FRONT_LEFT | TOF BACK_LEFT
+				if (distance_TOF[1] < GW_PARALLEL_CENTER && distance_TOF[2] < GW_PARALLEL_FRONT)	//TOF CENTER_LEFT | TOF FRONTSIDE_LEFT
 				{
 					htim3.Instance->CCR1 = RESET_MOTOR;
 					htim2.Instance->CCR2 = RESET_LENKUNG;
