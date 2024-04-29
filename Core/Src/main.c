@@ -33,9 +33,11 @@
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
-/* USER CODE BEGIN PD */
+#define RESET_LENKUNG	83U;	//Nullstellung
+#define RESET_MOTOR		75U;	//Nullstellung
 
 #define PUTCHAR int __io_putchar(int ch)	// Set printf to COM3 port || serielle Schnittstelle
+/* USER CODE BEGIN PD */
 
 enum STATE{
 	STOP, DRIVE, PARK
@@ -166,13 +168,13 @@ int main(void)
   HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1); //Clock is at 45MHZ Prescaler 900 Counter Period 1000 =>50Hz for Servo PWM
   //PA6
 
-  //Encoder
+//	Encoder
 //  uint32_t timer_counter=0;
 //  HAL_TIM_Encoder_Start(&htim1,TIM_CHANNEL_1);
 
   //Hier wird das Neutralsignal für den Fahrtregler ausgegeben.
 //  SET_PWM_MOTOR(75); 	// Set zero position of motor driver (TIM3 PWM Motor)
-  htim3.Instance->CCR1 = 75;
+  htim3.Instance->CCR1 = RESET_MOTOR;
   HAL_Delay(2000);		// Wait for motor driver to get zero position
 
   //Callback at USER CODE 4
@@ -191,15 +193,15 @@ int main(void)
 
 		case STOP:
 //			SET_PWM_LENKUNG(83); //Set Duty Cycle of TIM2 PWM Lenkung
-			htim2.Instance->CCR2 = 83;
+			htim2.Instance->CCR2 = RESET_LENKUNG;
 //			SET_PWM_MOTOR(75); //Set Duty Cycle of TIM3 PWM Motor
-			htim3.Instance->CCR1 = 75;
+			htim3.Instance->CCR1 = RESET_MOTOR;
 			HAL_Delay(1000);
 
 			CHECK_STATE();	//Checkt den aktuellen Fahrmodus (durch blauen Knopf änderbar) | einmal drücken DRIVE, kurz gedrückt halten PARK
 
 		case DRIVE:
-			HAL_UART_Receive_DMA(&huart1,rx_buff,10); //Achtung Uart1 bei L476 TX(D8/PA9) RX(D2/PA10) nach beschriftung entsprechen diese Pins Uart0!
+			HAL_UART_Receive_DMA(&huart1,rx_buff,10); //Achtung Uart1 bei L476 TX(D8/PA9) RX(D2/PA10) nach Beschriftung entsprechen diese Pins Uart0!
 				 if((SysTickGetTickcount()-UART_Tick)>=1000)
 				 {
 
@@ -386,7 +388,6 @@ static void START_SIGNAL(uint16_t MODE)
 		TOGGLE_PIN(GPIOA,GPIO_PIN_5);
 		HAL_Delay(MODE);
 		TOGGLE_PIN(GPIOA,GPIO_PIN_5);
-
 	}
 }
 
@@ -403,9 +404,7 @@ static void START_SIGNAL(uint16_t MODE)
  */
 static void START_PARKING(void)
 {
-	int RESET_LENKUNG = 83U;	//Nullstellung
-	int RESET_MOTOR = 75U;		//Nullstellung
-	int GW_PARKLÜCKE = 220U, GW_BACK = 375U, GW_PARALLEL_FRONT = 200U, GW_PARALLEL_CENTER = 250U, GW_KORREKTUR = 300U;	//GW = Grenzwert
+	int GW_PARKLÜCKE = 220U, GW_BACK = 400U, GW_PARALLEL_FRONT = 195U, GW_PARALLEL_CENTER = 250U, GW_KORREKTUR = 300U;	//GW = Grenzwert
 
 	htim3.Instance->CCR1 = 83;
 
@@ -414,21 +413,21 @@ static void START_PARKING(void)
 	//Fahren bis Lücke erkannt wird
 		do
 		{
-			GET_TOF_DATA();
+			GET_TOF_DATA(2);
 		}
-		while(distance_TOF[2] < GW_PARKLÜCKE || distance_TOF[2] == 0U);	// TOF FRONTSIDE_LEFT
+		while(distance_TOF[2] < GW_PARKLÜCKE);	// TOF FRONTSIDE_LEFT
 
 	//Fahren bis Lücke Zuende ist
 		do
 		{
-			GET_TOF_DATA();
+			GET_TOF_DATA(2);
 		}
 		while(distance_TOF[2] > GW_PARKLÜCKE|| distance_TOF[2] == 0U);	//TOF FRONTSIDE_LEFT
 
 	//Fahren bis Auto in Position
 		do
 		{
-			GET_TOF_DATA();
+			GET_TOF_DATA(1);
 		}
 		while(distance_TOF[1] > GW_PARKLÜCKE || distance_TOF[1] == 0U);	//TOF CENTER_LEFT
 
@@ -437,30 +436,31 @@ static void START_PARKING(void)
 	//Rückwärts und voll links einlenken
 		htim2.Instance->CCR2 = 105;
 		HAL_Delay(1000);
-		htim3.Instance->CCR1 = 67;
+		htim3.Instance->CCR1 = 69;
 		HAL_Delay(1000);
 		htim3.Instance->CCR1 = RESET_MOTOR;
 		HAL_Delay(1000);
-		htim3.Instance->CCR1 = 70;
+		htim3.Instance->CCR1 = 69;
 
 	//Rückwärts bis BACK_CENTER_US Mindestabstand erkannt, dann voll rechts einschlagen
 		do
 		{
-			GET_TOF_DATA();
+			GET_TOF_DATA(6);
 		}
 		while(distance_TOF[6] > GW_BACK || distance_TOF[6] == 0U);	//TOF BACKSIDE_LEFT
 
 		htim3.Instance->CCR1 = RESET_MOTOR;
-		htim2.Instance->CCR2 = RESET_LENKUNG;
+//		htim2.Instance->CCR2 = RESET_LENKUNG;
 		HAL_Delay(1000);
 		htim2.Instance->CCR2 = 45;
 		HAL_Delay(1000);
-		htim3.Instance->CCR1 = 70;
+		htim3.Instance->CCR1 = 69;
 
 		//Rückwärts bis Auto wieder paralell ist
 			while(1)
 			{
-				GET_TOF_DATA();
+				GET_TOF_DATA(1);
+				GET_TOF_DATA(2);
 
 				if (distance_TOF[1] < GW_PARALLEL_CENTER && distance_TOF[2] < GW_PARALLEL_FRONT)	//TOF CENTER_LEFT | TOF FRONTSIDE_LEFT
 				{
@@ -471,12 +471,12 @@ static void START_PARKING(void)
 				}
 			}
 
-		htim3.Instance->CCR1 = 82;
+		htim3.Instance->CCR1 = 83;
 
 	//Geradeaus bis Auto korrekt steht
 		do
 		{
-			GET_TOF_DATA();
+			GET_TOF_DATA(3);
 		}
 		while(distance_TOF[3] > GW_KORREKTUR|| distance_TOF[3] == 0U);	//TOF FRONTSIDE_CENTER
 
