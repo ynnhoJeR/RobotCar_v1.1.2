@@ -27,6 +27,7 @@
 
 /* Private define ------------------------------------------------------------*/
 #define TOF_COUNT	7U
+//#define TOF_COUNT	9U
 
 /* Private variables ---------------------------------------------------------*/
 Dev_t deviceTOF[TOF_COUNT];
@@ -42,7 +43,9 @@ static const char *TofDevStr[] =
   [3] 	= 	"FRONTSIDE_CENTER",
   [4] 	= 	"FRONTSIDE_RIGHT",
   [5] 	= 	"BACKSIDE_CENTER",
-  [6] 	= 	"BACKSIDE_LEFT"
+  [6] 	= 	"BACKSIDE_LEFT",
+//  [7] 	= 	"CENTER_RIGHT",
+//  [8] 	= 	"BACKSIDE_RIGHT"
 
 };
 
@@ -181,6 +184,12 @@ static void SET_TOF_PIN(uint8_t device)
 		case 5:	//BACKSIDE_LEFT 	(PC09)
 			GPIOC->BSRR = (uint32_t)GPIO_PIN_9;
 			break;
+//		case 6:	//CENTER_RIGHT 		(PC10)
+//			GPIOC->BSRR = (uint32_t)GPIO_PIN_10;
+//			break;
+//		case 7:	//BACKSIDE_RIGHT 	(PC11)
+//			GPIOC->BSRR = (uint32_t)GPIO_PIN_11;
+//			break;
 
 		default:
 			break;
@@ -200,6 +209,8 @@ static void RESET_ALL_TOF_SEN(void)
 	  GPIOC->BRR = (uint32_t)GPIO_PIN_7;
 	  GPIOC->BRR = (uint32_t)GPIO_PIN_8;
 	  GPIOC->BRR = (uint32_t)GPIO_PIN_9;
+//	  GPIOC->BRR = (uint32_t)GPIO_PIN_10;
+//	  GPIOC->BRR = (uint32_t)GPIO_PIN_11;
 	  usDelay(3);
 }
 
@@ -233,9 +244,15 @@ static void SET_OFFSET(void)
 			case 5:	//BACKSIDE_CENTER	(PC08)
 				offsetvalue = -8;
 				break;
-			case 6:	//BACKSIDE_RIGHT	(PC09)
+			case 6:	//BACKSIDE_LEFT		(PC09)
 				offsetvalue = -15;
 				break;
+//			case 7:	//CENTER_RIGHT		(PC10)
+//				offsetvalue = -10;
+//				break;
+//			case 8:	//BACKSIDE_RIGHT	(PC11)
+//				offsetvalue = -8;
+//				break;
 
 			default:
 				break;
