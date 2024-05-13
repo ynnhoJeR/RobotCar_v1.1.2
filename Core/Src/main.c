@@ -220,6 +220,8 @@ int main(void)
 
 					//TODO: Hier Funktion ergänzen die nach Schilderkennung in den passenden Modus wechselt
 
+					//ENCODE_SIGN(rx_buff[????]);
+
 					int8_t STOP_CAR = 0x01;
 
 					STOP_CAR = CHECK_BUTTON();
@@ -229,8 +231,6 @@ int main(void)
 						state = STOP;
 						HAL_Delay(1500);
 					}
-
-					//ENCODE_SIGN(rx_buff[????]);
 
 				 }
 			break;
@@ -392,9 +392,9 @@ static void START_SIGNAL(uint16_t MODE)
 }
 
 /**
- * Einparkalgorythmus V1.1.2
+ * Einparkalgorythmus v1.1.3
  *
- * distance_TOF[1] = CENTER_LEFT, distance_TOF[2] = FRONTSIDE_LEFT, distance_TOF[3] = FRONTSIDE_CENTER, distance_TOF[4] = FRONTSIDE_RIGHT, distance_TOF[5] = BACKSIDE_CENTER, distance_TOF[6] = BACKSIDE_LEFT
+ * distance_TOF[1] = CENTER_LEFT, distance_TOF[2] = FRONTSIDE_LEFT, distance_TOF[3] = FRONTSIDE_CENTER, distance_TOF[4] = FRONTSIDE_RIGHT, distance_TOF[5] = BACKSIDE_CENTER, distance_TOF[6] = BACKSIDE_LEFT, distance_TOF[7] = CENRER_RIGHT, distance_TOF[8] = BACKSIDE_RIGHT
  * distance_US[0] = FRONT_CENTER_US, distance_US[1] = BACK_CENTER_US
  *
  * htim3 = MOTOR, htim2 = LENKUNG
