@@ -38,16 +38,16 @@ uint16_t distance_TOF[TOF_COUNT];
 static const char *TofDevStr[] =
 {
   [1] 	= 	"CENTER_LEFT",
-  [2] 	= 	"FRONT_LEFT",
+  [2] 	= 	"FRONTSIDE_LEFT",
   [3] 	= 	"FRONTSIDE_CENTER",
-  [4] 	= 	"BACK_LEFT",
+  [4] 	= 	"FRONTSIDE_RIGHT",
   [5] 	= 	"BACKSIDE_CENTER",
   [6] 	= 	"BACKSIDE_LEFT"
 
 };
 
 /* Private function prototypes -----------------------------------------------*/
-static void GET_TOF_DATA(void);
+static void GET_TOF_DATA(uint8_t SensorNR);
 static void TOF_INIT(void);
 static void SET_TOF_PIN(uint8_t device);
 static void RESET_ALL_TOF_SEN(void);
@@ -60,19 +60,15 @@ void usDelay(uint32_t uSec);
 /**
  * Auswertung der TOF-Sensoren
  *
- * Funktion evtl. umbauen, dass immer noch benötigter Sensor abgefragt wird
  */
-static void GET_TOF_DATA(void)
+static void GET_TOF_DATA(uint8_t SensorNR)
 {
 	uint32_t delayTOF = 10;
 	printf("\n");
 
-	for(int i = 1; i < TOF_COUNT; i++)		// i = 1 um die erste I2C Adresse zu überspringen, da keiner Sensor vorhanden
-	{
+		status[SensorNR] = VL53L4CD_StartRanging(deviceTOF[SensorNR]);
 
-		status[i] = VL53L4CD_StartRanging(deviceTOF[i]);
-
-		if(status[i] == 0)
+		if(status[SensorNR] == 0)
 		{
 			uint8_t messungen = 0;
 			// Jeden Messung zwei mal um Genauigkeit zu erhöhen
@@ -80,32 +76,31 @@ static void GET_TOF_DATA(void)
 			{
 				//Polling um zu pruefen ob eine neue Messung abgeschlossen ist
 					HAL_Delay(delayTOF);
-					status[i] = VL53L4CD_CheckForDataReady(deviceTOF[i], &isReady[i]);
+					status[SensorNR] = VL53L4CD_CheckForDataReady(deviceTOF[SensorNR], &isReady[SensorNR]);
 
-					if(isReady[i])
+					if(isReady[SensorNR])
 					{
 						HAL_Delay(delayTOF);
 
 						//Hardwareinterrupt des Sensors löschen, sonst kann keine weitere Messung erfolgen
-						VL53L4CD_ClearInterrupt(deviceTOF[i]);
+						VL53L4CD_ClearInterrupt(deviceTOF[SensorNR]);
 
 						//Entfernung auslesen
 						//Die Entfernung wird immer direkt nach dem auslesen wieder gespeichert!
 						HAL_Delay(delayTOF);
-						VL53L4CD_GetResult(deviceTOF[i], &result[i]);
-						if(result[i].range_status == 0)
+						VL53L4CD_GetResult(deviceTOF[SensorNR], &result[SensorNR]);
+						if(result[SensorNR].range_status == 0)
 						{
-							distance_TOF[i] = result[i].distance_mm;
-							printf("%s	-> Distance = %5d mm\n",TofDevStr[i], distance_TOF[i]);
+							distance_TOF[SensorNR] = result[SensorNR].distance_mm;
+							printf("%s	-> Distance = %5d mm\n",TofDevStr[SensorNR], distance_TOF[SensorNR]);
 						}
 					}
 					messungen++;
-					WaitMs(deviceTOF[i], delayTOF);
+					WaitMs(deviceTOF[SensorNR], delayTOF);
 			}
 		}
 		HAL_Delay(delayTOF);
-		status[i] = VL53L4CD_StopRanging(deviceTOF[i]);
-	}
+		status[SensorNR] = VL53L4CD_StopRanging(deviceTOF[SensorNR]);
 }
 
 /**
@@ -171,13 +166,13 @@ static void SET_TOF_PIN(uint8_t device)
 		case 0:	//CENTER_LEFT		(PC04)
 			GPIOC->BSRR = (uint32_t)GPIO_PIN_4;
 			break;
-		case 1:	//FRONT_LEFT		(PC05)
+		case 1:	//FRONTSIDE_LEFT	(PC05)
 			GPIOC->BSRR = (uint32_t)GPIO_PIN_5;
 			break;
 		case 2:	//FRONTSIDE_CENTER	(PC06)
 			GPIOC->BSRR = (uint32_t)GPIO_PIN_6;
 			break;
-		case 3:	//BACK_LEFT			(PC07)
+		case 3:	//FRONTSIDE_RIGHT	(PC07)
 			GPIOC->BSRR = (uint32_t)GPIO_PIN_7;
 			break;
 		case 4:	//BACKSIDE_CENTER 	(PC08)
@@ -223,22 +218,22 @@ static void SET_OFFSET(void)
 	{
 		switch (i) /* Offsetparameter in mm für jeden Sensor */
 		{
-			case 1:	//CENTER_LEFT	(PC04)
+			case 1:	//CENTER_LEFT		(PC04)
 				offsetvalue = -10;
 				break;
-			case 2:	//FRONT_LEFT	(PC05)
+			case 2:	//FRONTSIDE_LEFT	(PC05)
 				offsetvalue = -12;
 				break;
-			case 3:	//FRONT_RIGHT	(PC06)
+			case 3:	//FRONTSIDE_RIGHT	(PC06)
 				offsetvalue = -10;
 				break;
-			case 4:	//BACK_LEFT		(PC07)
+			case 4:	//FRONTSIDE_RIGHT	(PC07)
 				offsetvalue = -10;
 				break;
-			case 5:	//BACK_RIGHT	(PC08)
+			case 5:	//BACKSIDE_CENTER	(PC08)
 				offsetvalue = -8;
 				break;
-			case 6:	//CENTER_RIGHT	(PC09)
+			case 6:	//BACKSIDE_RIGHT	(PC09)
 				offsetvalue = -15;
 				break;
 
